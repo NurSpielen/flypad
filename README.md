@@ -2,7 +2,7 @@
 
 Creating a basic project inspired by <https://flightsim.to/file/92709/atis-pad-scratchpad-utility-app-for-atc-weather-data>
 
-The goal of this project is to build an application while learning how to use Slint with Rust  
+The goal of this project is to build an application while learning how to use Iced with Rust  
 
 ![alt text](image.png)
 
