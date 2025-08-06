@@ -1,7 +1,7 @@
 use iced::{
     Element, Length, Task,
     widget::{
-        Button, Column, Container, button, center, column, container, row, text, text_editor,
+        Button, Column, Container, Row, button, center, column, container, row, text, text_editor,
         text_input,
     },
 };
@@ -153,72 +153,59 @@ impl App {
         metar_content: &'a text_editor::Content,
         metar_action: impl Fn(text_editor::Action) -> Event + 'a,
     ) -> Column<'a, Event> {
-        fn text_width_container<'a>(
-            input_text: impl Into<String>,
-            length: Length,
-        ) -> Container<'a, Event> {
-            container(text(input_text.into())).width(length)
+        fn label_container<'a>(input_text: impl Into<String>) -> Container<'a, Event> {
+            container(text(input_text.into())).width(Length::FillPortion(1))
         }
 
-        fn bordered_text_container<'a>(
-            input_text: impl Into<String>,
-            length: Length,
-        ) -> Container<'a, Event> {
+        fn value_row<'a>(children: Element<'a, Event>) -> Row<'a, Event> {
+            row![children].width(Length::FillPortion(3))
+        }
+
+        fn bordered_text_container<'a>(input_text: impl Into<String>) -> Container<'a, Event> {
             container(text(input_text.into()))
-                .width(length)
+                .width(Length::FillPortion(1))
                 .style(container::bordered_box)
                 .padding(5)
         }
 
         let icao_row = row![
-            text_width_container("ICAO", Length::FillPortion(1)),
-            container(text_input("ICAO", &airport.icao).on_input(icao_action))
-                .width(Length::FillPortion(4))
-                .padding(5)
-        ]
-        .spacing(15);
+            label_container("ICAO"),
+            value_row(container(text_input("ICAO", &airport.icao).on_input(icao_action)).into())
+        ];
 
         let wind_row = row![
-            text_width_container("Wind", Length::FillPortion(1)),
-            bordered_text_container(
-                format!("{}", &airport.weather.wind_direction),
-                Length::FillPortion(1)
-            ),
-            text_width_container("  °", Length::FillPortion(1)),
-            bordered_text_container(
-                format!("{}", &airport.weather.wind_speed),
-                Length::FillPortion(1)
-            ),
-            text_width_container("  kts", Length::FillPortion(1)),
+            label_container("Wind"),
+            value_row(
+                row![
+                    bordered_text_container(format!("{}", &airport.weather.wind_direction),),
+                    label_container("  °"),
+                    bordered_text_container(format!("{}", &airport.weather.wind_speed),),
+                    label_container("  kts")
+                ]
+                .into()
+            )
         ];
 
         let temperature_row = row![
-            text_width_container("Temperature", Length::FillPortion(1)),
-            bordered_text_container(
-                format!("{}", &airport.weather.temperature),
-                Length::FillPortion(1)
-            ),
-            text_width_container(" Dew Point", Length::FillPortion(1)),
-            bordered_text_container(
-                format!("{}", &airport.weather.dew_point),
-                Length::FillPortion(1)
-            ),
+            label_container("Temperature"),
+            value_row(
+                row![
+                    bordered_text_container(format!("{}", &airport.weather.temperature),),
+                    label_container(" Dew Point"),
+                    bordered_text_container(format!("{}", &airport.weather.dew_point),),
+                ]
+                .into()
+            )
         ];
 
         let qnh_row = row![
-            text_width_container("QNH", Length::FillPortion(1)),
-            bordered_text_container(
-                format!("{}", &airport.weather.altimeter),
-                Length::FillPortion(3)
-            )
+            label_container("QNH"),
+            value_row(bordered_text_container(format!("{}", &airport.weather.altimeter)).into())
         ];
 
         let visibility_row = row![
-            text_width_container("Visibility", Length::FillPortion(1)),
-            bordered_text_container(
-                format!("{}", &airport.weather.visibility),
-                Length::FillPortion(3)
-            )
+            label_container("Visibility"),
+            value_row(bordered_text_container(format!("{}", &airport.weather.visibility)).into())
         ];
 
         let metar_column = column![
