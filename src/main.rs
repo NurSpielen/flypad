@@ -1,7 +1,8 @@
 use iced::{
     Element, Length, Task,
     widget::{
-        Button, Container, button, center, column, container, row, text, text_editor, text_input,
+        Button, Column, Container, button, center, column, container, row, text, text_editor,
+        text_input,
     },
 };
 
@@ -151,7 +152,7 @@ impl App {
         editor_action: impl Fn(text_editor::Action) -> Event + 'a,
         metar_content: &'a text_editor::Content,
         metar_action: impl Fn(text_editor::Action) -> Event + 'a,
-    ) -> Element<'a, Event> {
+    ) -> Column<'a, Event> {
         fn text_width_container<'a>(
             input_text: impl Into<String>,
             length: Length,
@@ -242,20 +243,22 @@ impl App {
             .style(container::bordered_box)
         ];
 
-        let airport_data = column![
-            icao_row,
-            wind_row,
-            temperature_row,
-            qnh_row,
-            visibility_row,
-            metar_column
-        ]
-        .spacing(15)
-        .padding(10);
+        let information_container = container(
+            column![
+                icao_row,
+                wind_row,
+                temperature_row,
+                qnh_row,
+                visibility_row,
+                metar_column,
+                atc_notes
+            ]
+            .spacing(5)
+            .padding(10),
+        )
+        .style(container::bordered_box);
 
-        column![center(btn), airport_data, atc_notes]
-            .width(Length::FillPortion(1))
-            .into()
+        column![center(btn), information_container].width(Length::FillPortion(1))
     }
 
     async fn refresh_airport_weather(icao: String) -> Option<Weather> {
