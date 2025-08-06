@@ -1,9 +1,7 @@
 use iced::{
-    Element,
-    Length::{self},
-    Task,
+    Element, Length, Task,
     widget::{
-        Button, button, center, column, container, row, scrollable, text, text_editor, text_input,
+        Button, Container, button, center, column, container, row, text, text_editor, text_input,
     },
 };
 
@@ -23,6 +21,8 @@ enum Event {
     EditArrivalWeather(Option<Weather>),
     EditDepartureNotes(text_editor::Action),
     EditArrivalNotes(text_editor::Action),
+    DepartureMetarAction(text_editor::Action),
+    ArrivalMetarAction(text_editor::Action),
 }
 
 struct App {
@@ -30,6 +30,8 @@ struct App {
     arrival_airport: Airport,
     departure_notes: text_editor::Content,
     arrival_notes: text_editor::Content,
+    departure_metar: text_editor::Content,
+    arrival_metar: text_editor::Content,
 }
 
 impl App {
@@ -40,6 +42,8 @@ impl App {
                 arrival_airport: Airport::default(),
                 departure_notes: text_editor::Content::new(),
                 arrival_notes: text_editor::Content::new(),
+                departure_metar: text_editor::Content::new(),
+                arrival_metar: text_editor::Content::new(),
             },
             Task::none(),
         )
@@ -67,6 +71,7 @@ impl App {
             }
             Event::EditDepartureWeather(weather) => {
                 if let Some(weather) = weather {
+                    self.departure_metar = text_editor::Content::with_text(&weather.metar);
                     self.departure_airport.weather = weather;
                 }
                 Task::none()
@@ -77,6 +82,7 @@ impl App {
             }
             Event::EditArrivalWeather(weather) => {
                 if let Some(weather) = weather {
+                    self.arrival_metar = text_editor::Content::with_text(&weather.metar);
                     self.arrival_airport.weather = weather;
                 }
                 Task::none()
@@ -87,6 +93,20 @@ impl App {
             }
             Event::EditArrivalNotes(action) => {
                 self.arrival_notes.perform(action);
+                Task::none()
+            }
+            Event::DepartureMetarAction(action) => {
+                if let text_editor::Action::Edit(_) = action {
+                    return Task::none();
+                }
+                self.departure_metar.perform(action);
+                Task::none()
+            }
+            Event::ArrivalMetarAction(action) => {
+                if let text_editor::Action::Edit(_) = action {
+                    return Task::none();
+                }
+                self.arrival_metar.perform(action);
                 Task::none()
             }
         }
@@ -106,6 +126,8 @@ impl App {
             Event::EditDepartureIcao,
             &self.departure_notes,
             Event::EditDepartureNotes,
+            &self.departure_metar,
+            Event::DepartureMetarAction,
         );
 
         let arrival_column = Self::create_column(
@@ -114,6 +136,8 @@ impl App {
             Event::EditArrivalIcao,
             &self.arrival_notes,
             Event::EditArrivalNotes,
+            &self.arrival_metar,
+            Event::ArrivalMetarAction,
         );
 
         row![departure_column, arrival_column].spacing(20).into()
@@ -125,44 +149,113 @@ impl App {
         icao_action: impl Fn(String) -> Event + 'a,
         editor_content: &'a text_editor::Content,
         editor_action: impl Fn(text_editor::Action) -> Event + 'a,
+        metar_content: &'a text_editor::Content,
+        metar_action: impl Fn(text_editor::Action) -> Event + 'a,
     ) -> Element<'a, Event> {
+        fn text_width_container<'a>(
+            input_text: impl Into<String>,
+            length: Length,
+        ) -> Container<'a, Event> {
+            container(text(input_text.into())).width(length)
+        }
+
+        fn bordered_text_container<'a>(
+            input_text: impl Into<String>,
+            length: Length,
+        ) -> Container<'a, Event> {
+            container(text(input_text.into()))
+                .width(length)
+                .style(container::bordered_box)
+                .padding(5)
+        }
+
         let icao_row = row![
-            text("ICAO"),
-            text_input("ICAO", &airport.icao).on_input(icao_action)
+            text_width_container("ICAO", Length::FillPortion(1)),
+            container(text_input("ICAO", &airport.icao).on_input(icao_action))
+                .width(Length::FillPortion(4))
+                .padding(5)
         ]
         .spacing(15);
 
         let wind_row = row![
-            container(text("Wind")).width(Length::FillPortion(2)),
-            container(text(format!("{} °", &airport.weather.wind_direction)))
-                .width(Length::FillPortion(1)),
-            container(text(format!("{} kts", &airport.weather.wind_speed)))
-                .width(Length::FillPortion(1))
+            text_width_container("Wind", Length::FillPortion(1)),
+            bordered_text_container(
+                format!("{}", &airport.weather.wind_direction),
+                Length::FillPortion(1)
+            ),
+            text_width_container("  °", Length::FillPortion(1)),
+            bordered_text_container(
+                format!("{}", &airport.weather.wind_speed),
+                Length::FillPortion(1)
+            ),
+            text_width_container("  kts", Length::FillPortion(1)),
         ];
 
         let temperature_row = row![
-            container(text(format!(
-                "Temperature: {}",
-                &airport.weather.temperature
-            )))
-            .width(Length::FillPortion(1)),
-            container(text(format!("Dew Point: {}", &airport.weather.dew_point)))
-                .width(Length::FillPortion(1)),
+            text_width_container("Temperature", Length::FillPortion(1)),
+            bordered_text_container(
+                format!("{}", &airport.weather.temperature),
+                Length::FillPortion(1)
+            ),
+            text_width_container(" Dew Point", Length::FillPortion(1)),
+            bordered_text_container(
+                format!("{}", &airport.weather.dew_point),
+                Length::FillPortion(1)
+            ),
         ];
-        let airport_data = column![icao_row, wind_row, temperature_row].spacing(15);
 
-        column![
-            center(btn),
-            airport_data,
-            scrollable(
+        let qnh_row = row![
+            text_width_container("QNH", Length::FillPortion(1)),
+            bordered_text_container(
+                format!("{}", &airport.weather.altimeter),
+                Length::FillPortion(3)
+            )
+        ];
+
+        let visibility_row = row![
+            text_width_container("Visibility", Length::FillPortion(1)),
+            bordered_text_container(
+                format!("{}", &airport.weather.visibility),
+                Length::FillPortion(3)
+            )
+        ];
+
+        let metar_column = column![
+            container(text("Metar")).padding(5),
+            container(
+                text_editor(&metar_content)
+                    .on_action(metar_action)
+                    .height(80)
+                    .wrapping(text::Wrapping::WordOrGlyph)
+            )
+            .style(container::bordered_box)
+        ];
+
+        let atc_notes = column![
+            container(text("ATC Notes")).padding(5),
+            container(
                 text_editor(&editor_content)
                     .height(125)
                     .on_action(editor_action)
-                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .wrapping(text::Wrapping::WordOrGlyph),
             )
+            .style(container::bordered_box)
+        ];
+
+        let airport_data = column![
+            icao_row,
+            wind_row,
+            temperature_row,
+            qnh_row,
+            visibility_row,
+            metar_column
         ]
-        .width(Length::FillPortion(1))
-        .into()
+        .spacing(15)
+        .padding(10);
+
+        column![center(btn), airport_data, atc_notes]
+            .width(Length::FillPortion(1))
+            .into()
     }
 
     async fn refresh_airport_weather(icao: String) -> Option<Weather> {
