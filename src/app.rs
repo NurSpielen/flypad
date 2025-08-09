@@ -159,9 +159,9 @@ impl App {
             styles::label_container("Wind"),
             styles::value_row(
                 row![
-                    styles::bordered_text_container(format!("{}", &airport.weather.wind_direction),),
+                    styles::bordered_text_container(airport.weather.wind_direction.to_string()),
                     styles::label_container("  °"),
-                    styles::bordered_text_container(format!("{}", &airport.weather.wind_speed),),
+                    styles::bordered_text_container(airport.weather.wind_speed.to_string()),
                     styles::label_container("  kts")
                 ]
                 .into()
@@ -172,9 +172,9 @@ impl App {
             styles::label_container("Temperature"),
             styles::value_row(
                 row![
-                    styles::bordered_text_container(format!("{}", &airport.weather.temperature),),
+                    styles::bordered_text_container(airport.weather.temperature.to_string()),
                     styles::label_container(" Dew Point"),
-                    styles::bordered_text_container(format!("{}", &airport.weather.dew_point),),
+                    styles::bordered_text_container(airport.weather.dew_point.to_string()),
                 ]
                 .into()
             )
@@ -183,21 +183,21 @@ impl App {
         let qnh_row = row![
             styles::label_container("QNH"),
             styles::value_row(
-                styles::bordered_text_container(format!("{}", &airport.weather.altimeter)).into()
+                styles::bordered_text_container(airport.weather.altimeter.to_string()).into()
             )
         ];
 
         let visibility_row = row![
             styles::label_container("Visibility"),
             styles::value_row(
-                styles::bordered_text_container(format!("{}", &airport.weather.visibility)).into()
+                styles::bordered_text_container(airport.weather.visibility.to_string()).into()
             )
         ];
 
         let metar_column = column![
             container(text("Metar")).padding(5),
             container(
-                text_editor(&metar_content)
+                text_editor(metar_content)
                     .on_action(metar_action)
                     .height(80)
                     .wrapping(text::Wrapping::WordOrGlyph)
@@ -208,7 +208,7 @@ impl App {
         let atc_notes = column![
             container(text("ATC Notes")).padding(5),
             container(
-                text_editor(&editor_content)
+                text_editor(editor_content)
                     .height(125)
                     .on_action(editor_action)
                     .wrapping(text::Wrapping::WordOrGlyph),
