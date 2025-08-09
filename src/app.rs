@@ -235,6 +235,11 @@ impl App {
     }
 
     async fn refresh_airport_weather(icao: String) -> Option<Weather> {
-        Weather::fetch(&icao, true).await.ok()
+        let weather = Weather::fetch(&icao, true).await.ok();
+        if weather.is_none() {
+            println!("An error occurred when deserializing the weather response");
+        }
+
+        weather
     }
 }

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, de::Error};
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Weather {
@@ -39,6 +39,11 @@ impl Weather {
         // This is being done as the weather is provided as an array
         let mut weather: Vec<Weather> =
             serde_json::from_str(&body).context("failed to deserialize weather")?;
+
+        if weather.is_empty() {
+            Err(serde_json::Error::custom("empty weather response"))
+                .context("invalid weather response received")?;
+        }
 
         Ok(weather.remove(0))
     }
