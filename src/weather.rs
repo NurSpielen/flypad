@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, de::Error};
 
+use crate::utils;
+
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Weather {
     #[serde(rename = "temp")]
@@ -29,12 +31,7 @@ impl Weather {
             "https://aviationweather.gov/api/data/metar?ids={icao}&format=json&taf={should_fetch_taf}"
         );
 
-        let body = reqwest::get(url)
-            .await
-            .context("unable to fetch url")?
-            .text()
-            .await
-            .context("failed to get text from response")?;
+        let body = utils::fetch_url_data(&url).await?;
 
         // This is being done as the weather is provided as an array
         let mut weather: Vec<Weather> =
