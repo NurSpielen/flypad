@@ -10,9 +10,9 @@ The goal of this project is to build an application while learning how to use Ic
 
 This needs to be able to:
 
-- [ ] Allow user to set their simbrief ID
-- [ ] Import data from Simbrief
-  - [ ] Departure and Arrival Airport
+- [X] Allow user to set their simbrief ID
+- [X] Import data from Simbrief
+  - [X] Departure and Arrival Airport
   - [ ] Flight Data
     - Route
     - Cost Index
@@ -27,10 +27,10 @@ This needs to be able to:
     - Payload
     - Passenger number
     - Takeoff Weight
-- [ ] Allow user to refresh the weather
+- [X] Allow user to refresh the weather
   - Wind direction and speed
   - Temperature and dew point
   - QNH
   - Populate Runway and transition levels from Simbrief data
   - METAR
-- [ ] Provide a box for ATC Notes
+- [X] Provide a box for ATC Notes
