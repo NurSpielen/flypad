@@ -4,11 +4,27 @@ use iced::{
         Button, Column, button, center, column, container, row, text, text_editor, text_input,
     },
 };
+use tokio::{
+    fs::OpenOptions,
+    io::{AsyncReadExt, AsyncWriteExt},
+};
 
-use crate::{airport::Airport, styles, weather::Weather};
+use crate::{airport::Airport, flightplan::User, styles, weather::Weather};
+
+const USER_SAVE_PATH: &str = "user.json";
+
+#[derive(Debug, Clone)]
+pub enum UserEvent {
+    LoadUserId,
+    UserIdLoaded(Option<String>),
+    SetUserId(String),
+    SaveUserId,
+    UserIdSaved(Result<(), String>),
+}
 
 #[derive(Debug, Clone)]
 pub enum Event {
+    UserEvent(UserEvent),
     FetchSimbrief,
     RefreshWeather,
     EditDepartureIcao(String),
@@ -22,6 +38,7 @@ pub enum Event {
 }
 
 pub struct App {
+    user_id: String,
     departure_airport: Airport,
     arrival_airport: Airport,
     departure_notes: text_editor::Content,
@@ -34,6 +51,7 @@ impl App {
     pub fn new() -> (Self, Task<Event>) {
         (
             Self {
+                user_id: String::new(),
                 departure_airport: Airport::default(),
                 arrival_airport: Airport::default(),
                 departure_notes: text_editor::Content::new(),
@@ -41,12 +59,13 @@ impl App {
                 departure_metar: text_editor::Content::new(),
                 arrival_metar: text_editor::Content::new(),
             },
-            Task::none(),
+            Task::done(Event::UserEvent(UserEvent::LoadUserId)),
         )
     }
 
     pub fn update(&mut self, event: Event) -> Task<Event> {
         match event {
+            Event::UserEvent(event) => self.perform_user_event(event),
             Event::FetchSimbrief => {
                 // Fetch data from simbrief here
                 Task::none()
@@ -108,6 +127,34 @@ impl App {
         }
     }
 
+    fn perform_user_event(&mut self, event: UserEvent) -> Task<Event> {
+        match event {
+            UserEvent::LoadUserId => Task::perform(Self::load_user_id(USER_SAVE_PATH), |user_id| {
+                Event::UserEvent(UserEvent::UserIdLoaded(user_id))
+            }),
+            UserEvent::UserIdLoaded(user_id) => match user_id {
+                Some(user_id) => Task::done(Event::UserEvent(UserEvent::SetUserId(user_id))),
+                None => Task::none(),
+            },
+            UserEvent::SetUserId(user_id) => {
+                self.user_id = user_id;
+                Task::none()
+            }
+            UserEvent::SaveUserId => Task::perform(
+                Self::save_user_id(USER_SAVE_PATH, self.user_id.clone()),
+                |result| Event::UserEvent(UserEvent::UserIdSaved(result)),
+            ),
+            UserEvent::UserIdSaved(result) => {
+                match result {
+                    Ok(_) => (),
+                    Err(e) => eprintln!("{e}"),
+                }
+
+                Task::none()
+            }
+        }
+    }
+
     pub fn view(&self) -> Element<'_, Event> {
         let simbrief_button = button("Fetch Simbrief")
             .on_press(Event::FetchSimbrief)
@@ -136,7 +183,13 @@ impl App {
             Event::ArrivalMetarAction,
         );
 
-        row![departure_column, arrival_column].spacing(20).into()
+        let weather_and_notes_row = row![departure_column, arrival_column]
+            .spacing(20)
+            .padding(10);
+
+        let flight_plan_section = Self::populate_flight_plan_information();
+
+        column![weather_and_notes_row, flight_plan_section].into()
     }
 
     fn create_column<'a>(
@@ -232,6 +285,48 @@ impl App {
         .style(container::bordered_box);
 
         column![center(btn), information_container].width(Length::FillPortion(1))
+    }
+
+    fn populate_flight_plan_information<'a>() -> Element<'a, Event> {
+        container(column![]).into()
+    }
+
+    async fn load_user_id(path: &str) -> Option<String> {
+        let mut file = OpenOptions::new().read(true).open(path).await.ok()?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).await.ok()?;
+        let user: Option<User> = serde_json::from_str(&contents).ok();
+
+        match user {
+            Some(User(user_id)) => Some(user_id),
+            None => None,
+        }
+    }
+
+    // TODO: Modify return type with a more descriptive result
+    async fn save_user_id(path: &str, user_id: String) -> Result<(), String> {
+        let Ok(mut file) = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .await
+        else {
+            return Err("failed to open file when attempting to save".to_string());
+        };
+
+        let user = User(user_id);
+
+        match serde_json::to_string_pretty(&user) {
+            Ok(json) => {
+                if let Err(e) = file.write_all(json.as_bytes()).await {
+                    return Err(e.to_string());
+                }
+            }
+            Err(_) => return Err("failed to serialize user".to_string()),
+        }
+
+        Ok(())
     }
 
     async fn refresh_airport_weather(icao: String) -> Option<Weather> {
