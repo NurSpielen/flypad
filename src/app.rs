@@ -81,24 +81,30 @@ impl App {
                 ),
             ]),
             Event::EditDepartureIcao(icao) => {
-                self.departure_airport.icao = icao;
+                Self::set_icao(&mut self.departure_airport, icao);
                 Task::none()
             }
             Event::EditDepartureWeather(weather) => {
                 if let Some(weather) = weather {
-                    self.departure_metar = text_editor::Content::with_text(&weather.metar);
-                    self.departure_airport.weather = weather;
+                    Self::set_current_weather(
+                        &mut self.departure_airport,
+                        &mut self.departure_metar,
+                        weather,
+                    );
                 }
                 Task::none()
             }
             Event::EditArrivalIcao(icao) => {
-                self.arrival_airport.icao = icao;
+                Self::set_icao(&mut self.arrival_airport, icao);
                 Task::none()
             }
             Event::EditArrivalWeather(weather) => {
                 if let Some(weather) = weather {
-                    self.arrival_metar = text_editor::Content::with_text(&weather.metar);
-                    self.arrival_airport.weather = weather;
+                    Self::set_current_weather(
+                        &mut self.arrival_airport,
+                        &mut self.arrival_metar,
+                        weather,
+                    );
                 }
                 Task::none()
             }
@@ -111,20 +117,31 @@ impl App {
                 Task::none()
             }
             Event::DepartureMetarAction(action) => {
-                if let text_editor::Action::Edit(_) = action {
-                    return Task::none();
+                if !matches!(action, text_editor::Action::Edit(_)) {
+                    self.departure_metar.perform(action);
                 }
-                self.departure_metar.perform(action);
                 Task::none()
             }
             Event::ArrivalMetarAction(action) => {
-                if let text_editor::Action::Edit(_) = action {
-                    return Task::none();
+                if !matches!(action, text_editor::Action::Edit(_)) {
+                    self.arrival_metar.perform(action);
                 }
-                self.arrival_metar.perform(action);
                 Task::none()
             }
         }
+    }
+
+    fn set_icao(airport: &mut Airport, icao: String) {
+        airport.icao = icao;
+    }
+
+    fn set_current_weather(
+        airport: &mut Airport,
+        metar: &mut text_editor::Content,
+        weather: Weather,
+    ) {
+        *metar = text_editor::Content::with_text(&weather.metar);
+        airport.weather = weather;
     }
 
     fn perform_user_event(&mut self, event: UserEvent) -> Task<Event> {
@@ -297,10 +314,7 @@ impl App {
         file.read_to_string(&mut contents).await.ok()?;
         let user: Option<User> = serde_json::from_str(&contents).ok();
 
-        match user {
-            Some(User(user_id)) => Some(user_id),
-            None => None,
-        }
+        user.map(|User(user_id)| user_id)
     }
 
     // TODO: Modify return type with a more descriptive result
