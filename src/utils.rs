@@ -24,3 +24,18 @@ where
         _ => Ok("No Value".to_string()),
     }
 }
+
+// AviationWeather.gov occasionally returns the visibility as a number instead of as a string.
+// This handles that
+pub fn deserialize_optional_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: Value = Deserialize::deserialize(deserializer)?;
+
+    match value {
+        Value::String(s) => Ok(Some(s)),
+        Value::Number(n) => Ok(Some(n.to_string())),
+        _ => Ok(None),
+    }
+}

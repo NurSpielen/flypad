@@ -30,7 +30,7 @@ pub enum UserEvent {
 pub enum Event {
     UserEvent(UserEvent),
     FetchSimbrief,
-    FlightPlanFetched(Option<FlightPlan>),
+    FlightPlanFetched(Box<Option<FlightPlan>>),
     RefreshWeather,
     EditDepartureIcao(String),
     EditDepartureWeather(Option<Weather>),
@@ -81,7 +81,7 @@ impl App {
                 Event::FlightPlanFetched,
             ),
             Event::FlightPlanFetched(option) => {
-                self.flightplan = option;
+                self.flightplan = *option;
                 if let Some(flightplan) = &self.flightplan {
                     let departure_icao = flightplan.origin.icao_code.clone();
                     let arrival_icao = flightplan.destination.icao_code.clone();
@@ -273,9 +273,9 @@ impl App {
             styles::label_container("Wind"),
             styles::value_row(
                 row![
-                    styles::bordered_text_container(airport.weather.wind_direction.to_string()),
+                    styles::bordered_text_container(airport.weather.wind_direction().to_string()),
                     styles::label_container("  °"),
-                    styles::bordered_text_container(airport.weather.wind_speed.to_string()),
+                    styles::bordered_text_container(airport.weather.wind_speed().to_string()),
                     styles::label_container("  kts")
                 ]
                 .into()
@@ -286,9 +286,9 @@ impl App {
             styles::label_container("Temperature"),
             styles::value_row(
                 row![
-                    styles::bordered_text_container(airport.weather.temperature.to_string()),
+                    styles::bordered_text_container(airport.weather.temperature().to_string()),
                     styles::label_container(" Dew Point"),
-                    styles::bordered_text_container(airport.weather.dew_point.to_string()),
+                    styles::bordered_text_container(airport.weather.dew_point().to_string()),
                 ]
                 .into()
             )
@@ -297,14 +297,14 @@ impl App {
         let qnh_row = row![
             styles::label_container("QNH"),
             styles::value_row(
-                styles::bordered_text_container(airport.weather.altimeter.to_string()).into()
+                styles::bordered_text_container(airport.weather.altimeter().to_string()).into()
             )
         ];
 
         let visibility_row = row![
             styles::label_container("Visibility"),
             styles::value_row(
-                styles::bordered_text_container(airport.weather.visibility.to_string()).into()
+                styles::bordered_text_container(airport.weather.visibility().to_string()).into()
             )
         ];
 
@@ -405,8 +405,8 @@ impl App {
         .style(container::bordered_box)
     }
 
-    async fn refresh_simbrief_flightplan(user_id: String) -> Option<FlightPlan> {
-        FlightPlan::fetch(&user_id).await.ok()
+    async fn refresh_simbrief_flightplan(user_id: String) -> Box<Option<FlightPlan>> {
+        Box::new(FlightPlan::fetch(&user_id).await.ok())
     }
 
     async fn refresh_airport_weather(icao: String) -> Option<Weather> {

@@ -1,24 +1,29 @@
 use anyhow::{Context, Result};
-use serde::{Deserialize, de::Error};
+use serde::{de::Error, Deserialize};
 
 use crate::utils;
 
+
+// This provides getters to the fields instead of making these public as I have found out that
+// the responses may contain null values, therefore I have decided to avoid checking if the value
+// exists within the application, and instead I just return the default value if needed.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Weather {
     #[serde(rename = "temp")]
-    pub temperature: f32,
+    temperature: Option<f32>,
     #[serde(rename = "dewp")]
-    pub dew_point: f32,
+    dew_point: Option<f32>,
     #[serde(rename = "wdir")]
-    pub wind_direction: f32,
+    wind_direction: Option<f32>,
     #[serde(rename = "wspd")]
-    pub wind_speed: f32,
+    wind_speed: Option<f32>,
     #[serde(rename = "wgst")]
-    pub wind_gust: Option<f32>,
+    wind_gust: Option<f32>,
+    #[serde(deserialize_with = "utils::deserialize_optional_string")]
     #[serde(rename = "visib")]
-    pub visibility: String,
+    visibility: Option<String>,
     #[serde(rename = "altim")]
-    pub altimeter: f32,
+    altimeter: Option<f32>,
     #[serde(rename = "rawOb")]
     pub metar: String,
     #[serde(rename = "rawTaf")]
@@ -26,6 +31,37 @@ pub struct Weather {
 }
 
 impl Weather {
+    pub fn temperature(&self) -> f32 {
+        self.temperature.unwrap_or_default()
+    }
+
+    pub fn dew_point(&self) -> f32 {
+        self.dew_point.unwrap_or_default()
+    }
+
+    pub fn wind_direction(&self)-> f32{
+        self.wind_direction.unwrap_or_default()
+    }
+
+    pub fn wind_speed(&self) -> f32 {
+        self.wind_speed.unwrap_or_default()
+    }
+
+    pub fn wind_gust(&self) -> f32 {
+        self.wind_gust.unwrap_or_default()
+    }
+
+    pub fn visibility(&self) -> &str {
+        match &self.visibility {
+            Some(val) => val,
+            None => ""
+        }
+    }
+
+    pub fn altimeter(&self) -> f32 {
+        self.altimeter.unwrap_or_default()
+    }
+
     pub async fn fetch(icao: &str, should_fetch_taf: bool) -> Result<Weather> {
         let url = format!(
             "https://aviationweather.gov/api/data/metar?ids={icao}&format=json&taf={should_fetch_taf}"
@@ -52,7 +88,7 @@ mod tests {
 
     #[tokio::test]
     pub async fn test_fetch() -> anyhow::Result<()> {
-        let weather = Weather::fetch("KJFK", true).await?;
+        let weather = Weather::fetch("RKSI", true).await?;
         println!("{weather:?}");
         Ok(())
     }
