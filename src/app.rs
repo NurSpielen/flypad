@@ -1,15 +1,19 @@
+use iced::widget::{center_x, Container};
 use iced::{
-    Element, Length, Task,
-    widget::{
-        Button, Column, button, center, column, container, row, text, text_editor, text_input,
-    },
+    widget::{button, column, container, row, text, text_editor, text_input, Button, Column}, Element, Length,
+    Task,
 };
 use tokio::{
     fs::OpenOptions,
     io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::{airport::Airport, flightplan::User, styles, weather::Weather};
+use crate::{
+    airport::Airport,
+    flightplan::{FlightPlan, User},
+    styles,
+    weather::Weather,
+};
 
 const USER_SAVE_PATH: &str = "user.json";
 
@@ -26,6 +30,7 @@ pub enum UserEvent {
 pub enum Event {
     UserEvent(UserEvent),
     FetchSimbrief,
+    FlightPlanFetched(Option<FlightPlan>),
     RefreshWeather,
     EditDepartureIcao(String),
     EditDepartureWeather(Option<Weather>),
@@ -35,6 +40,7 @@ pub enum Event {
     EditArrivalNotes(text_editor::Action),
     DepartureMetarAction(text_editor::Action),
     ArrivalMetarAction(text_editor::Action),
+    RouteAction(text_editor::Action),
 }
 
 pub struct App {
@@ -45,6 +51,8 @@ pub struct App {
     arrival_notes: text_editor::Content,
     departure_metar: text_editor::Content,
     arrival_metar: text_editor::Content,
+    flightplan: Option<FlightPlan>,
+    route: text_editor::Content,
 }
 
 impl App {
@@ -58,6 +66,8 @@ impl App {
                 arrival_notes: text_editor::Content::new(),
                 departure_metar: text_editor::Content::new(),
                 arrival_metar: text_editor::Content::new(),
+                flightplan: None,
+                route: text_editor::Content::new(),
             },
             Task::done(Event::UserEvent(UserEvent::LoadUserId)),
         )
@@ -66,9 +76,24 @@ impl App {
     pub fn update(&mut self, event: Event) -> Task<Event> {
         match event {
             Event::UserEvent(event) => self.perform_user_event(event),
-            Event::FetchSimbrief => {
-                // Fetch data from simbrief here
-                Task::none()
+            Event::FetchSimbrief => Task::perform(
+                Self::refresh_simbrief_flightplan(self.user_id.clone()),
+                Event::FlightPlanFetched,
+            ),
+            Event::FlightPlanFetched(option) => {
+                self.flightplan = option;
+                if let Some(flightplan) = &self.flightplan {
+                    let departure_icao = flightplan.origin.icao_code.clone();
+                    let arrival_icao = flightplan.destination.icao_code.clone();
+                    self.route = text_editor::Content::with_text(&flightplan.flight_information.route_navigraph);
+                    Task::batch([
+                        Task::done(Event::EditDepartureIcao(departure_icao)),
+                        Task::done(Event::EditArrivalIcao(arrival_icao)),
+                    ])
+                } else {
+                    println!("No flight plan fetched");
+                    Task::none()
+                }
             }
             Event::RefreshWeather => Task::batch([
                 Task::perform(
@@ -128,6 +153,12 @@ impl App {
                 }
                 Task::none()
             }
+            Event::RouteAction(action) => {
+                if !matches!(action, text_editor::Action::Edit(_)) {
+                    self.route.perform(action);
+                }
+                Task::none()
+            }
         }
     }
 
@@ -173,12 +204,17 @@ impl App {
     }
 
     pub fn view(&self) -> Element<'_, Event> {
-        let simbrief_button = button("Fetch Simbrief")
-            .on_press(Event::FetchSimbrief)
-            .padding(10);
-        let weather_button = button("Refresh Weather")
-            .on_press(Event::RefreshWeather)
-            .padding(10);
+        let user_id_input_field = center_x(
+            container(
+                text_input::TextInput::new("Simbrief", &self.user_id)
+                    .on_input(|input| Event::UserEvent(UserEvent::SetUserId(input)))
+                    .width(Length::Fixed(70.0)),
+            )
+            .style(container::bordered_box),
+        );
+
+        let simbrief_button = button("Fetch Simbrief").on_press(Event::FetchSimbrief);
+        let weather_button = button("Refresh Weather").on_press(Event::RefreshWeather);
 
         let departure_column = Self::create_column(
             simbrief_button,
@@ -200,13 +236,21 @@ impl App {
             Event::ArrivalMetarAction,
         );
 
-        let weather_and_notes_row = row![departure_column, arrival_column]
-            .spacing(20)
-            .padding(10);
+        let weather_and_notes_row = row![departure_column, arrival_column].spacing(20);
 
         let flight_plan_section = Self::populate_flight_plan_information();
 
-        column![weather_and_notes_row, flight_plan_section].into()
+        let route_section = Self::create_route_container(&self.route);
+
+        column![
+            user_id_input_field,
+            weather_and_notes_row,
+            flight_plan_section,
+            route_section
+        ]
+        .spacing(10)
+        .padding(10)
+        .into()
     }
 
     fn create_column<'a>(
@@ -301,7 +345,9 @@ impl App {
         )
         .style(container::bordered_box);
 
-        column![center(btn), information_container].width(Length::FillPortion(1))
+        column![center_x(btn), information_container]
+            .width(Length::FillPortion(1))
+            .spacing(10)
     }
 
     fn populate_flight_plan_information<'a>() -> Element<'a, Event> {
@@ -341,6 +387,26 @@ impl App {
         }
 
         Ok(())
+    }
+
+    fn create_route_container(
+        route_content: &text_editor::Content,
+    ) -> Container<'_, Event> {
+        container(column![
+            container(text("Route")).padding(5),
+            container(
+                text_editor(route_content)
+                    .height(125)
+                    .on_action(Event::RouteAction)
+                    .wrapping(text::Wrapping::WordOrGlyph),
+            )
+        ])
+        .padding(10)
+        .style(container::bordered_box)
+    }
+
+    async fn refresh_simbrief_flightplan(user_id: String) -> Option<FlightPlan> {
+        FlightPlan::fetch(&user_id).await.ok()
     }
 
     async fn refresh_airport_weather(icao: String) -> Option<Weather> {
