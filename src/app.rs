@@ -1,7 +1,9 @@
-use iced::widget::{center_x, Container};
 use iced::{
-    widget::{button, column, container, row, text, text_editor, text_input, Button, Column}, Element, Length,
-    Task,
+    Element, Length, Task,
+    widget::{
+        Button, Column, Container, button, center_x, column, container, row, text, text_editor,
+        text_input,
+    },
 };
 use tokio::{
     fs::OpenOptions,
@@ -85,7 +87,9 @@ impl App {
                 if let Some(flightplan) = &self.flightplan {
                     let departure_icao = flightplan.origin.icao_code.clone();
                     let arrival_icao = flightplan.destination.icao_code.clone();
-                    self.route = text_editor::Content::with_text(&flightplan.flight_information.route_navigraph);
+                    self.route = text_editor::Content::with_text(
+                        &flightplan.flight_information.route_navigraph,
+                    );
                     Task::batch([
                         Task::done(Event::EditDepartureIcao(departure_icao)),
                         Task::done(Event::EditArrivalIcao(arrival_icao)),
@@ -389,9 +393,7 @@ impl App {
         Ok(())
     }
 
-    fn create_route_container(
-        route_content: &text_editor::Content,
-    ) -> Container<'_, Event> {
+    fn create_route_container(route_content: &text_editor::Content) -> Container<'_, Event> {
         container(column![
             container(text("Route")).padding(5),
             container(
