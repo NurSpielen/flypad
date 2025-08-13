@@ -212,6 +212,7 @@ impl App {
             container(
                 text_input::TextInput::new("Simbrief", &self.user_id)
                     .on_input(|input| Event::UserEvent(UserEvent::SetUserId(input)))
+                    .on_submit(Event::UserEvent(UserEvent::SaveUserId))
                     .width(Length::Fixed(70.0)),
             )
             .style(container::bordered_box),
@@ -372,6 +373,7 @@ impl App {
         let Ok(mut file) = OpenOptions::new()
             .read(true)
             .write(true)
+            .create(true)
             .truncate(true)
             .open(path)
             .await
