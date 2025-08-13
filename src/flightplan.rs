@@ -136,8 +136,6 @@ impl FlightPlan {
         let url = format!("https://www.simbrief.com/api/xml.fetcher.php?userid={user_id}&json=1");
         let body = utils::fetch_url_data(&url).await?;
 
-        let output = serde_json::from_str(&body).context("failed deserializing flightplan");
-        println!("{output:?}");
-        output
+        serde_json::from_str(&body).context("failed deserializing flightplan")
     }
 }
